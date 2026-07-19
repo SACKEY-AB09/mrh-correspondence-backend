@@ -1,0 +1,1079 @@
+openapi: 3.0.3
+info:
+  title: MRH Correspondence Backend API
+  version: 1.0.0
+  description: Correspondence tracking and reporting system for MRH offices.
+paths:
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyTokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MyTokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MyTokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyTokenObtainPair'
+          description: ''
+  /api/auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/correspondence/:
+    get:
+      operationId: correspondence_list
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CorrespondenceList'
+          description: ''
+    post:
+      operationId: correspondence_create
+      tags:
+      - correspondence
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrespondenceCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CorrespondenceCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CorrespondenceCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceCreate'
+          description: ''
+  /api/correspondence/{id}/:
+    get:
+      operationId: correspondence_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceDetail'
+          description: ''
+  /api/correspondence/{id}/attachments/:
+    get:
+      operationId: correspondence_attachments_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attachment'
+          description: ''
+    post:
+      operationId: correspondence_attachments_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Attachment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Attachment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Attachment'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+          description: ''
+  /api/correspondence/{id}/complete/:
+    post:
+      operationId: correspondence_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceDetail'
+          description: ''
+  /api/correspondence/{id}/file/:
+    post:
+      operationId: correspondence_file_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceDetail'
+          description: ''
+  /api/correspondence/{id}/forward/:
+    post:
+      operationId: correspondence_forward_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceDetail'
+          description: ''
+  /api/correspondence/{id}/movements/:
+    get:
+      operationId: correspondence_movements_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CorrespondenceMovement'
+          description: ''
+  /api/correspondence/{id}/notes/:
+    get:
+      operationId: correspondence_notes_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Note'
+          description: ''
+    post:
+      operationId: correspondence_notes_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+  /api/correspondence/{id}/update-stage/:
+    post:
+      operationId: correspondence_update_stage_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - correspondence
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceDetail'
+          description: ''
+  /api/dashboard/admin-summary/:
+    get:
+      operationId: dashboard_admin_summary_retrieve
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/dashboard/office-summary/:
+    get:
+      operationId: dashboard_office_summary_retrieve
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/me/:
+    get:
+      operationId: me_retrieve
+      tags:
+      - me
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: me_update
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: me_partial_update
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/reports/compare/:
+    get:
+      operationId: reports_compare_retrieve
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/reports/offices/{id}/backlog/:
+    get:
+      operationId: reports_offices_backlog_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/reports/offices/{id}/summary/:
+    get:
+      operationId: reports_offices_summary_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/reports/offices/{id}/trends/:
+    get:
+      operationId: reports_offices_trends_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/reports/offices/{id}/workload/:
+    get:
+      operationId: reports_offices_workload_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/schema/:
+    get:
+      operationId: schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - ht
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - schema
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+components:
+  schemas:
+    ActionTypeEnum:
+      enum:
+      - Registered
+      - Forwarded
+      - Stage Updated
+      - Completed
+      type: string
+      description: |-
+        * `Registered` - Registered
+        * `Forwarded` - Forwarded
+        * `Stage Updated` - Stage Updated
+        * `Completed` - Completed
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        file:
+          type: string
+          format: uri
+        original_filename:
+          type: string
+          maxLength: 255
+        uploaded_by_email:
+          type: string
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - file
+      - id
+      - original_filename
+      - uploaded_at
+      - uploaded_by_email
+    CorrespondenceCreate:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        subject:
+          type: string
+          maxLength: 255
+        sender:
+          type: string
+          maxLength: 255
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        direction:
+          $ref: '#/components/schemas/DirectionEnum'
+        current_office:
+          type: string
+          format: uuid
+        current_stage:
+          type: string
+          maxLength: 100
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - current_office
+      - direction
+      - sender
+      - subject
+      - type
+    CorrespondenceDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        current_office_name:
+          type: string
+          readOnly: true
+        reference_number:
+          type: string
+          readOnly: true
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        subject:
+          type: string
+          maxLength: 255
+        sender:
+          type: string
+          maxLength: 255
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        direction:
+          $ref: '#/components/schemas/DirectionEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        current_stage:
+          type: string
+          maxLength: 100
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        received_at:
+          type: string
+          format: date-time
+          readOnly: true
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        current_office:
+          type: string
+          format: uuid
+          readOnly: true
+        registered_by:
+          type: string
+          format: uuid
+          readOnly: true
+        assigned_to:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - current_office
+      - current_office_name
+      - direction
+      - id
+      - received_at
+      - reference_number
+      - registered_by
+      - resolved_at
+      - sender
+      - status
+      - subject
+      - type
+    CorrespondenceList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        reference_number:
+          type: string
+          readOnly: true
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        subject:
+          type: string
+          maxLength: 255
+        sender:
+          type: string
+          maxLength: 255
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        direction:
+          $ref: '#/components/schemas/DirectionEnum'
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        current_office:
+          type: string
+          format: uuid
+        current_office_name:
+          type: string
+          readOnly: true
+        assigned_to:
+          type: string
+          format: uuid
+          nullable: true
+        assigned_to_name:
+          type: string
+          readOnly: true
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        received_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_to_name
+      - current_office
+      - current_office_name
+      - direction
+      - id
+      - received_at
+      - reference_number
+      - sender
+      - subject
+      - type
+    CorrespondenceMovement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        action_type:
+          $ref: '#/components/schemas/ActionTypeEnum'
+        from_office:
+          type: string
+          format: uuid
+          nullable: true
+        from_office_name:
+          type: string
+          readOnly: true
+        to_office:
+          type: string
+          format: uuid
+          nullable: true
+        to_office_name:
+          type: string
+          readOnly: true
+        actor_email:
+          type: string
+          readOnly: true
+        note:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action_type
+      - actor_email
+      - from_office_name
+      - id
+      - timestamp
+      - to_office_name
+    DirectionEnum:
+      enum:
+      - Incoming
+      - Internal
+      type: string
+      description: |-
+        * `Incoming` - Incoming
+        * `Internal` - Internal
+    MyTokenObtainPair:
+      type: object
+      properties:
+        email:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        text:
+          type: string
+        author_email:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author_email
+      - created_at
+      - id
+      - text
+    PatchedUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        office:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+    PriorityEnum:
+      enum:
+      - Normal
+      - High
+      - Urgent
+      type: string
+      description: |-
+        * `Normal` - Normal
+        * `High` - High
+        * `Urgent` - Urgent
+    RoleEnum:
+      enum:
+      - OFFICE_USER
+      - ADMIN
+      type: string
+      description: |-
+        * `OFFICE_USER` - Office User
+        * `ADMIN` - System Administrator
+    StatusEnum:
+      enum:
+      - Registered
+      - In Progress
+      - Awaiting Action
+      - Forwarded
+      - Completed
+      - Filed
+      - Overdue
+      type: string
+      description: |-
+        * `Registered` - Registered
+        * `In Progress` - In Progress
+        * `Awaiting Action` - Awaiting Action
+        * `Forwarded` - Forwarded
+        * `Completed` - Completed
+        * `Filed` - Filed
+        * `Overdue` - Overdue
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TypeEnum:
+      enum:
+      - Contract
+      - Letter
+      - Memo
+      - Report
+      type: string
+      description: |-
+        * `Contract` - Contract
+        * `Letter` - Letter
+        * `Memo` - Memo
+        * `Report` - Report
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        office:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+      required:
+      - email
+      - id
+      - office
+      - role
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
