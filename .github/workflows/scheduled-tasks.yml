@@ -1,0 +1,15 @@
+name: Run scheduled backend tasks
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # every hour, on the hour
+  workflow_dispatch:        # lets you trigger it manually too, for testing
+
+jobs:
+  run-tasks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call task runner endpoint
+        run: |
+          curl -X POST https://mrh-backend.onrender.com/api/internal/run-tasks/ \
+            -H "X-Task-Secret: ${{ secrets.TASK_RUNNER_SECRET }}"
