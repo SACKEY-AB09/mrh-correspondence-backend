@@ -28,3 +28,8 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserPreference
         fields = ["deadline_reminders", "overdue_alerts", "compact_list_view"]
+
+class OfficeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Office
+        fields = ["id", "name", "code", "status", "password_last_rotated"]

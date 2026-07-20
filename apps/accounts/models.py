@@ -18,6 +18,10 @@ class Office(models.Model):
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    shared_password_hash = models.CharField(max_length=128, blank=True)
+    password_last_rotated = models.DateTimeField(null=True, blank=True)
+
+
     def __str__(self):
         return self.name
 
