@@ -19,7 +19,7 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from apps.accounts.views import MeView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
-from apps.accounts.views import CreateOfficeView, SetOfficePasswordView, CreateUserView
+from apps.accounts.views import CreateOfficeView, RegenerateUserPasswordView, CreateUserView
 
 
 urlpatterns = [
@@ -34,7 +34,7 @@ urlpatterns = [
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/", include("apps.common.urls")),
     path("api/offices/", CreateOfficeView.as_view(), name="create-office"),
-    path("api/offices/<uuid:pk>/set-password/", SetOfficePasswordView.as_view(), name="set-office-password"),
+    path("api/users/<uuid:pk>/regenerate-password/", RegenerateUserPasswordView.as_view(), name="regenerate-user-password"),
     path("api/users/", CreateUserView.as_view(), name="create-user"),
 
 ]

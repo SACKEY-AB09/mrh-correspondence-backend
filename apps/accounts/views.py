@@ -22,7 +22,6 @@ class MeView(RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
-
 class CreateOfficeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -35,28 +34,8 @@ class CreateOfficeView(APIView):
         if not name or not code:
             raise ValidationError({"detail": "name and code are required."})
 
-        office, raw_password = services.create_office(name=name, code=code, created_by=request.user)
-        return Response({
-            "office": OfficeSerializer(office).data,
-            "generated_password": raw_password,
-        }, status=201)
-
-
-class SetOfficePasswordView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        if request.user.role != request.user.Role.ADMIN:
-            raise PermissionDenied("Admin access required.")
-
-        office = generics.get_object_or_404(Office, pk=pk)
-        raw_password = request.data.get("password")
-        if not raw_password:
-            raise ValidationError({"password": "This field is required."})
-
-        services.set_office_password(office=office, raw_password=raw_password, changed_by=request.user)
-        return Response({"detail": f"Password set for {office.name}."})
-
+        office = Office.objects.create(name=name, code=code)
+        return Response(OfficeSerializer(office).data, status=201)
 
 class CreateUserView(APIView):
     permission_classes = [IsAuthenticated]
@@ -78,10 +57,21 @@ class CreateUserView(APIView):
         except Office.DoesNotExist:
             raise ValidationError({"office": "Office not found."})
 
-        if not office.shared_password_hash:
-            raise ValidationError({"office": "This office has no password yet - create it via /offices/ or set one via /offices/{id}/set-password/ first."})
-
-        user = services.create_user(
+        user, raw_password = services.create_user(
             first_name=first_name, last_name=last_name, role=role, office=office, created_by=request.user
         )
-        return Response(UserSerializer(user).data, status=201)
+        return Response({
+            "user": UserSerializer(user).data,
+            "generated_password": raw_password,
+        }, status=201)
+
+class RegenerateUserPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.role != request.user.Role.ADMIN:
+            raise PermissionDenied("Admin access required.")
+
+        user = generics.get_object_or_404(User, pk=pk)
+        raw_password = services.regenerate_user_password(user=user, changed_by=request.user)
+        return Response({"detail": f"Password reset for {user.email}.", "generated_password": raw_password})

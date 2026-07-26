@@ -18,9 +18,6 @@ class Office(models.Model):
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    shared_password_hash = models.CharField(max_length=128, blank=True)
-    password_last_rotated = models.DateTimeField(null=True, blank=True)
-
 
     def __str__(self):
         return self.name
@@ -29,6 +26,7 @@ class Office(models.Model):
 class User(AbstractUser):
     class Role(models.TextChoices):
         OFFICE_USER = "OFFICE_USER", "Office User"
+        SUPERVISOR = "SUPERVISOR", "Supervisor" 
         ADMIN = "ADMIN", "System Administrator"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

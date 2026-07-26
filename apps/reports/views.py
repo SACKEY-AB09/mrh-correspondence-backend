@@ -19,8 +19,10 @@ def get_date_range(request):
 
 
 def resolve_office(request, office_id):
-    """Office-scoped access: non-admins can only view their own office's reports."""
     office = generics_get_object_or_404(office_id)
+    allowed_roles = (request.user.Role.ADMIN, request.user.Role.SUPERVISOR)
+    if request.user.role not in allowed_roles:
+        raise PermissionDenied("Only supervisors and admins can view office reports.")
     if request.user.role != request.user.Role.ADMIN and request.user.office_id != office.id:
         raise PermissionDenied("You can only view your own office's reports.")
     return office

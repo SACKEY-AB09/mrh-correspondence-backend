@@ -5,31 +5,7 @@ from . import services
 
 
 class OfficeAdmin(admin.ModelAdmin):
-    list_display = ["name", "code", "status", "password_last_rotated", "id"]
-    readonly_fields = ["shared_password_hash", "password_last_rotated"]
-    actions = ["regenerate_password"]
-
-    def save_model(self, request, obj, form, change):
-        is_new = obj._state.adding
-        super().save_model(request, obj, form, change)
-        if is_new:
-            raw_password = services.generate_office_password()
-            services.set_office_password(office=obj, raw_password=raw_password, changed_by=request.user)
-            self.message_user(
-                request,
-                f"Office password generated: {raw_password} — copy this now, it cannot be shown again.",
-                level=messages.WARNING,
-            )
-    @admin.action(description="Regenerate password for selected office(s)")
-    def regenerate_password(self, request, queryset):
-        for office in queryset:
-            raw_password = services.generate_office_password()
-            services.set_office_password(office=office, raw_password=raw_password, changed_by=request.user)
-            self.message_user(
-                request,
-                f"{office.name}: new password is {raw_password} — copy this now, it cannot be shown again.",
-                level=messages.WARNING,
-            )
+    list_display = ["name", "code", "status", "id"]
     
 
 admin.site.register(Office, OfficeAdmin)
@@ -45,34 +21,34 @@ class UserAdminForm(forms.ModelForm):
 class UserAdmin(admin.ModelAdmin):
     form = UserAdminForm
     list_display = ["email", "first_name", "last_name", "role", "office", "is_active"]
-    readonly_fields = []
+    actions = ["regenerate_password"]
 
     def save_model(self, request, obj, form, change):
-        is_new = obj._state.adding
-        if is_new:
+        if obj._state.adding:
             if not obj.office:
                 self.message_user(request, "A user must be assigned to an office.", level=messages.ERROR)
                 return
-            if not obj.office.shared_password_hash:
-                self.message_user(
-                    request,
-                    f"{obj.office.name} has no password set yet — create/edit that office first.",
-                    level=messages.ERROR,
-                )
-                return
-
-            user = services.create_user(
+            user, raw_password = services.create_user(
                 first_name=obj.first_name, last_name=obj.last_name,
                 role=obj.role, office=obj.office, created_by=request.user,
             )
             self.message_user(
                 request,
-                f"User created with generated email: {user.email}",
-                level=messages.SUCCESS,
+                f"User created — email: {user.email}, password: {raw_password} (copy now, shown once)",
+                level=messages.WARNING,
             )
         else:
             super().save_model(request, obj, form, change)
 
+    @admin.action(description="Regenerate password for selected user(s)")
+    def regenerate_password(self, request, queryset):
+        for user in queryset:
+            raw_password = services.regenerate_user_password(user=user, changed_by=request.user)
+            self.message_user(
+                request,
+                f"{user.email}: new password is {raw_password} — copy this now.",
+                level=messages.WARNING,
+            )
 
 
 admin.site.register(User, UserAdmin)
