@@ -2,7 +2,7 @@
 
 # Create your views here.
 from apps.accounts.models import Office
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -55,6 +55,10 @@ class ForwardCorrespondenceView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        if request.user.role == request.user.Role.ADMIN:
+            raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
+
+        
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
         to_office_id = request.data.get("to_office")
         try:
@@ -71,8 +75,12 @@ class ForwardCorrespondenceView(APIView):
 @extend_schema(request=None, responses=CorrespondenceDetailSerializer)
 class CompleteCorrespondenceView(APIView):
     permission_classes = [IsAuthenticated]
+    
 
     def post(self, request, pk):
+        if request.user.role == request.user.Role.ADMIN:
+            raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
+
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
         updated = services.complete_correspondence(correspondence=correspondence, actor=request.user)
         return Response(CorrespondenceDetailSerializer(updated).data)

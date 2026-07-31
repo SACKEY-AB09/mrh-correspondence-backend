@@ -32,4 +32,4 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
 class OfficeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Office
-        fields = ["id", "name", "code", "status", "password_last_rotated"]
+        fields = ["id", "name", "code", "status"]

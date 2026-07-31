@@ -19,14 +19,20 @@ def get_date_range(request):
 
 
 def resolve_office(request, office_id):
+    """Supervisors see only their own office. Admins see none — reports are confidential
+    staff-performance data, and system administration doesn't grant access to it."""
     office = generics_get_object_or_404(office_id)
-    allowed_roles = (request.user.Role.ADMIN, request.user.Role.SUPERVISOR)
-    if request.user.role not in allowed_roles:
-        raise PermissionDenied("Only supervisors and admins can view office reports.")
-    if request.user.role != request.user.Role.ADMIN and request.user.office_id != office.id:
-        raise PermissionDenied("You can only view your own office's reports.")
-    return office
 
+    if request.user.role == request.user.Role.ADMIN:
+        raise PermissionDenied("Administrators do not have access to confidential office reports.")
+
+    if request.user.role != request.user.Role.SUPERVISOR:
+        raise PermissionDenied("Only supervisors can view office reports.")
+
+    if request.user.office_id != office.id:
+        raise PermissionDenied("You can only view your own office's reports.")
+
+    return office
 
 def generics_get_object_or_404(office_id):
     try:
@@ -73,10 +79,8 @@ class ReportsCompareView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != request.user.Role.ADMIN:
-            raise PermissionDenied("Admin access required.")
-        start, end = get_date_range(request)
-        return Response([
-            {"office": o.name, **services.office_summary(o, start, end)}
-            for o in Office.objects.all()
-        ])
+        raise PermissionDenied(
+            "Cross-office report comparison is not currently approved. Contact system management if this is required."
+        )
+
+
