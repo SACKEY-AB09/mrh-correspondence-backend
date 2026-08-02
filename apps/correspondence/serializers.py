@@ -27,7 +27,7 @@ class CorrespondenceDetailSerializer(serializers.ModelSerializer):
 class CorrespondenceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Correspondence
-        fields = ["type", "subject", "sender", "priority", "direction", "current_office", "current_stage",
+        fields = ["type", "subject", "sender", "priority", "direction","current_stage",
                   "instructions", "document_date", "received_at", "deadline"]
         # reference_number, status, registered_by are set by the service function, not the client
 

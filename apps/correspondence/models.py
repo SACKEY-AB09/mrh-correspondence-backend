@@ -5,7 +5,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import FileExtensionValidator
 
 class Correspondence(models.Model):
     class Type(models.TextChoices):
@@ -84,16 +85,26 @@ class CorrespondenceMovement(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
-
+def validate_attachment_size(file):
+    max_size_mb = 10
+    if file.size > max_size_mb * 1024 * 1024:
+        raise DjangoValidationError(f"File too large. Maximum size is {max_size_mb}MB.")
 
 class Attachment(models.Model):
+    ALLOWED_EXTENSIONS = ["pdf", "doc", "docx", "jpg", "jpeg", "png"]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     correspondence = models.ForeignKey(Correspondence, on_delete=models.CASCADE, related_name="attachments")
-    file = models.FileField(upload_to="attachments/%Y/%m/")
+    file = models.FileField(
+        upload_to="attachments/%Y/%m/",
+        validators=[
+            FileExtensionValidator(allowed_extensions=ALLOWED_EXTENSIONS),
+            validate_attachment_size,
+        ],
+    )
     original_filename = models.CharField(max_length=255)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-
 
 class Note(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

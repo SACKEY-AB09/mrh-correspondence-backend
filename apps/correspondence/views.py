@@ -1,5 +1,6 @@
 #from django.shortcuts import render
-
+import magic
+from django.core.exceptions import ValidationError as DjangoValidationError
 # Create your views here.
 from apps.accounts.models import Office
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -12,9 +13,9 @@ from .serializers import (
     CorrespondenceListSerializer, CorrespondenceDetailSerializer,
     CorrespondenceCreateSerializer, CorrespondenceMovementSerializer,
     AttachmentSerializer, NoteSerializer,
-
 )
 from . import services
+
 
 from django.db.models import Count, Avg, F, ExpressionWrapper , DurationField, Q
 from django.utils import timezone
@@ -36,7 +37,12 @@ class CorrespondenceListCreateView(generics.ListCreateAPIView):
         return CorrespondenceCreateSerializer if self.request.method == "POST" else CorrespondenceListSerializer
 
     def perform_create(self, serializer):
-        office = serializer.validated_data.get("current_office")
+        office = self.request.user.office
+        if not office:
+            raise ValidationError({
+            "detail": "You are not assigned to an office and cannot register correspondence. "
+                      "Contact an administrator to be assigned to an office first."
+        })
         correspondence = services.register_correspondence(
             data=serializer.validated_data,
             office=office,
@@ -91,6 +97,9 @@ class UpdateStageView(APIView):
 
     def post(self, request, pk):
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
+        if request.user.role == request.user.Role.ADMIN:
+            raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
+        
         new_stage = request.data.get("current_stage")
         if not new_stage:
             raise ValidationError({"current_stage": "This field is required."})
@@ -106,6 +115,8 @@ class FileCorrespondenceView(APIView):
 
     def post(self, request, pk):
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
+        if request.user.role == request.user.Role.ADMIN:
+            raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
         note = request.data.get("note", "")
         updated = services.file_correspondence(correspondence=correspondence, actor=request.user, note=note)
         return Response(CorrespondenceDetailSerializer(updated).data)
@@ -118,6 +129,13 @@ class MovementListView(generics.ListAPIView):
     def get_queryset(self):
         return Correspondence.objects.get(pk=self.kwargs["pk"]).movements.all()
 
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/jpeg",
+    "image/png",
+}
 
 class AttachmentListCreateView(generics.ListCreateAPIView):
     serializer_class = AttachmentSerializer
@@ -128,12 +146,35 @@ class AttachmentListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
-        serializer.save(
+        uploaded_file = self.request.data.get("file")
+
+        if not uploaded_file:
+            raise ValidationError({"file": "No file was submitted."})
+
+        # Real content-type check — reads the file's actual bytes, not just its name/extension
+        file_head = uploaded_file.read(2048)
+        uploaded_file.seek(0)  # reset the read pointer so Django can still save the full file afterward
+        detected_type = magic.from_buffer(file_head, mime=True)
+
+        if detected_type not in ALLOWED_MIME_TYPES:
+            raise ValidationError({
+                "file": f"Unsupported file type ({detected_type}). Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG."
+            })
+
+        if uploaded_file.size > 10 * 1024 * 1024:
+            raise ValidationError({"file": "File too large. Maximum size is 10MB."})
+
+        instance = serializer.save(
             correspondence=correspondence,
             uploaded_by=self.request.user,
-            original_filename=self.request.data.get("file").name,
+            original_filename=uploaded_file.name,
         )
 
+        try:
+            instance.full_clean()
+        except DjangoValidationError as e:
+            instance.delete()
+            raise ValidationError({"file": e.messages})
 
 class NoteListCreateView(generics.ListCreateAPIView):
     serializer_class = NoteSerializer
