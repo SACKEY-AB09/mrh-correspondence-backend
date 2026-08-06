@@ -50,13 +50,13 @@ class OfficeReportSummaryView(APIView):
         return Response(services.office_summary(office, start, end))
 
 @extend_schema(responses=OpenApiTypes.OBJECT)
-class OfficeReportWorkloadView(APIView):
+class OfficeStaffContributionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         office = resolve_office(request, pk)
         start, end = get_date_range(request)
-        return Response(services.user_workload(office, start, end))
+        return Response(services.staff_contribution(office, start, end))
 
 @extend_schema(responses=OpenApiTypes.OBJECT)
 class OfficeReportBacklogView(APIView):

@@ -14,17 +14,69 @@ def office_summary(office, start, end):
     }
 
 
-def user_workload(office, start, end):
-    qs = Correspondence.objects.filter(current_office=office, received_at__range=[start, end])
-    return list(
-        qs.values("assigned_to__id", "assigned_to__email")
-        .annotate(
-            assigned=Count("id"),
-            completed=Count("id", filter=Q(status=Correspondence.Status.COMPLETED)),
-            open=Count("id", filter=~Q(status=Correspondence.Status.COMPLETED)),
-            overdue=Count("id", filter=Q(status=Correspondence.Status.OVERDUE)),
-        )
-    )
+def staff_contribution(office, start, end):
+    """Action-based contribution per user, built from actual audited actions —
+    not correspondence ownership, since correspondence belongs to offices, not people."""
+    from apps.correspondence.models import CorrespondenceMovement, Note, Attachment, Correspondence
+
+    movements = CorrespondenceMovement.objects.filter(
+        actor__office=office, timestamp__range=[start, end]
+    ).select_related("actor")
+
+    contributions = {}
+
+    def bucket(user):
+        key = str(user.id)
+        if key not in contributions:
+            contributions[key] = {
+                "user_id": key,
+                "user_email": user.email,
+                "registered": 0,
+                "stage_updates": 0,
+                "forwarded": 0,
+                "completed": 0,
+                "filed": 0,
+                "notes_added": 0,
+                "attachments_uploaded": 0,
+                "total_actions": 0,
+            }
+        return contributions[key]
+
+    action_field_map = {
+        CorrespondenceMovement.ActionType.REGISTERED: "registered",
+        CorrespondenceMovement.ActionType.FORWARDED: "forwarded",
+        CorrespondenceMovement.ActionType.STAGE_UPDATED: "stage_updates",
+        CorrespondenceMovement.ActionType.COMPLETED: "completed",
+    }
+
+    for m in movements:
+        if m.actor is None:
+            continue
+        entry = bucket(m.actor)
+        field = action_field_map.get(m.action_type)
+        if field:
+            entry[field] += 1
+        entry["total_actions"] += 1
+
+    notes = Note.objects.filter(author__office=office, created_at__range=[start, end]).select_related("author")
+    for n in notes:
+        if n.author is None:
+            continue
+        entry = bucket(n.author)
+        entry["notes_added"] += 1
+        entry["total_actions"] += 1
+
+    attachments = Attachment.objects.filter(
+        uploaded_by__office=office, uploaded_at__range=[start, end]
+    ).select_related("uploaded_by")
+    for a in attachments:
+        if a.uploaded_by is None:
+            continue
+        entry = bucket(a.uploaded_by)
+        entry["attachments_uploaded"] += 1
+        entry["total_actions"] += 1
+
+    return list(contributions.values())
 
 
 def backlog_aging(office):
@@ -34,16 +86,24 @@ def backlog_aging(office):
         current_office=office
     ).exclude(status=Correspondence.Status.COMPLETED)
 
-    buckets = {"0-2_days": 0, "3-7_days": 0, "7_plus_days": 0}
+    counts = {"0-2_days": 0, "3-7_days": 0, "8_plus_days": 0}
     for item in open_items:
         age_days = (now - item.received_at).days
         if age_days <= 2:
-            buckets["0-2_days"] += 1
+            counts["0-2_days"] += 1
         elif age_days <= 7:
-            buckets["3-7_days"] += 1
+            counts["3-7_days"] += 1
         else:
-            buckets["7_plus_days"] += 1
-    return buckets
+            counts["8_plus_days"] += 1
+
+    return {
+        "bands": [
+            {"key": "0-2_days", "label": "0-2 days", "min_days": 0, "max_days": 2, "count": counts["0-2_days"]},
+            {"key": "3-7_days", "label": "3-7 days", "min_days": 3, "max_days": 7, "count": counts["3-7_days"]},
+            {"key": "8_plus_days", "label": "8+ days", "min_days": 8, "max_days": None, "count": counts["8_plus_days"]},
+        ],
+        "total_open": sum(counts.values()),
+    }
 
 
 def type_trend(office, months=6):

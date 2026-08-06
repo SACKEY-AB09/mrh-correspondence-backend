@@ -15,7 +15,7 @@ from .serializers import (
     AttachmentSerializer, NoteSerializer,
 )
 from . import services
-
+from .permissions import enforce_office_access
 
 from django.db.models import Count, Avg, F, ExpressionWrapper , DurationField, Q
 from django.utils import timezone
@@ -56,6 +56,11 @@ class CorrespondenceDetailView(generics.RetrieveAPIView):
     serializer_class = CorrespondenceDetailSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_object(self):
+        obj = super().get_object()
+        enforce_office_access(self.request.user, obj)
+        return obj
+
 @extend_schema(request=None, responses=CorrespondenceDetailSerializer)
 class ForwardCorrespondenceView(APIView):
     permission_classes = [IsAuthenticated]
@@ -64,18 +69,16 @@ class ForwardCorrespondenceView(APIView):
         if request.user.role == request.user.Role.ADMIN:
             raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
 
-        
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
+        enforce_office_access(request.user, correspondence)
+
         to_office_id = request.data.get("to_office")
         try:
             to_office = Office.objects.get(pk=to_office_id)
         except Office.DoesNotExist:
             raise ValidationError({"to_office": "Office not found."})
-
         note = request.data.get("note", "")
-        updated = services.forward_correspondence(
-            correspondence=correspondence, to_office=to_office, actor=request.user, note=note
-        )
+        updated = services.forward_correspondence(correspondence=correspondence, to_office=to_office, actor=request.user, note=note)
         return Response(CorrespondenceDetailSerializer(updated).data)
 
 @extend_schema(request=None, responses=CorrespondenceDetailSerializer)
@@ -88,6 +91,7 @@ class CompleteCorrespondenceView(APIView):
             raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
 
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
+        enforce_office_access(request.user, correspondence)
         updated = services.complete_correspondence(correspondence=correspondence, actor=request.user)
         return Response(CorrespondenceDetailSerializer(updated).data)
     
@@ -99,7 +103,7 @@ class UpdateStageView(APIView):
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
         if request.user.role == request.user.Role.ADMIN:
             raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
-        
+        enforce_office_access(request.user, correspondence)
         new_stage = request.data.get("current_stage")
         if not new_stage:
             raise ValidationError({"current_stage": "This field is required."})
@@ -117,6 +121,8 @@ class FileCorrespondenceView(APIView):
         correspondence = generics.get_object_or_404(Correspondence, pk=pk)
         if request.user.role == request.user.Role.ADMIN:
             raise PermissionDenied("Administrators cannot perform correspondence workflow actions.")
+
+        enforce_office_access(request.user, correspondence)
         note = request.data.get("note", "")
         updated = services.file_correspondence(correspondence=correspondence, actor=request.user, note=note)
         return Response(CorrespondenceDetailSerializer(updated).data)
@@ -127,7 +133,9 @@ class MovementListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Correspondence.objects.get(pk=self.kwargs["pk"]).movements.all()
+        correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
+        enforce_office_access(self.request.user, correspondence)
+        return correspondence.movements.all()
 
 ALLOWED_MIME_TYPES = {
     "application/pdf",
@@ -142,34 +150,34 @@ class AttachmentListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
+        enforce_office_access(self.request.user, correspondence)
         return Attachment.objects.filter(correspondence_id=self.kwargs["pk"])
 
     def perform_create(self, serializer):
         correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
-        uploaded_file = self.request.data.get("file")
+        enforce_office_access(self.request.user, correspondence)
 
+        if Attachment.objects.filter(correspondence=correspondence).exists():
+            raise ValidationError({
+                "detail": "This correspondence already has an attachment. Additional attachments are not permitted."
+            })
+
+        uploaded_file = self.request.data.get("file")
         if not uploaded_file:
             raise ValidationError({"file": "No file was submitted."})
 
-        # Real content-type check — reads the file's actual bytes, not just its name/extension
         file_head = uploaded_file.read(2048)
-        uploaded_file.seek(0)  # reset the read pointer so Django can still save the full file afterward
+        uploaded_file.seek(0)
         detected_type = magic.from_buffer(file_head, mime=True)
-
         if detected_type not in ALLOWED_MIME_TYPES:
-            raise ValidationError({
-                "file": f"Unsupported file type ({detected_type}). Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG."
-            })
-
+            raise ValidationError({"file": f"Unsupported file type ({detected_type}). Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG."})
         if uploaded_file.size > 10 * 1024 * 1024:
             raise ValidationError({"file": "File too large. Maximum size is 10MB."})
 
         instance = serializer.save(
-            correspondence=correspondence,
-            uploaded_by=self.request.user,
-            original_filename=uploaded_file.name,
+            correspondence=correspondence, uploaded_by=self.request.user, original_filename=uploaded_file.name,
         )
-
         try:
             instance.full_clean()
         except DjangoValidationError as e:
@@ -181,11 +189,15 @@ class NoteListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
+        enforce_office_access(self.request.user, correspondence)
         return Note.objects.filter(correspondence_id=self.kwargs["pk"])
 
     def perform_create(self, serializer):
         correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
+        enforce_office_access(self.request.user, correspondence)
         serializer.save(correspondence=correspondence, author=self.request.user)
+
 
 @extend_schema(responses=OpenApiTypes.OBJECT)
 class OfficeSummaryDashboardView(APIView):

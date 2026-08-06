@@ -48,7 +48,7 @@ class AttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attachment
         fields = ["id", "file", "original_filename", "uploaded_by_email", "uploaded_at"]
-        read_only_fields = ["uploaded_by"]
+        read_only_fields = ["uploaded_by","original_filename"]
 
 
 class NoteSerializer(serializers.ModelSerializer):
