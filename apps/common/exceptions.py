@@ -1,6 +1,7 @@
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status as http_status
+import traceback
 
 
 def custom_exception_handler(exc, context):
@@ -10,6 +11,7 @@ def custom_exception_handler(exc, context):
         # — make sure the shape is consistent.
         
         return response
+    traceback.print_exc()
 
     # Anything else is an unhandled exception that would otherwise become an HTML 500 page.
     return Response(

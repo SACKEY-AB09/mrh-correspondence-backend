@@ -9,6 +9,8 @@ class AuditLog(models.Model):
         STAGE_UPDATED = "Stage Updated", "Stage Updated"
         COMPLETED = "Completed", "Completed"
         SECURITY = "Security", "Security"
+        REPORT_GENERATED = "Report Generated", "Report Generated"  
+        REPORT_VIEWED = "Report Viewed", "Report Viewed" 
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     action_type = models.CharField(max_length=20, choices=ActionType.choices)
