@@ -39,7 +39,10 @@ class CorrespondenceMovementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CorrespondenceMovement
-        fields = ["id", "action_type", "from_office", "from_office_name", "to_office", "to_office_name", "actor_email", "note", "timestamp"]
+        fields = [
+            "id", "action_type", "from_office", "from_office_name", "to_office", "to_office_name",
+            "previous_stage", "new_stage", "actor_email", "note", "timestamp",
+        ]
 
 
 class AttachmentSerializer(serializers.ModelSerializer):

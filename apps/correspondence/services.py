@@ -56,8 +56,10 @@ def forward_correspondence(*, correspondence, to_office, actor, note=""):
     return correspondence
 
 
+
 @transaction.atomic
 def update_stage(*, correspondence, new_stage, actor, note=""):
+    previous_stage = correspondence.current_stage
     correspondence.current_stage = new_stage
     correspondence.status = Correspondence.Status.IN_PROGRESS
     correspondence.save(update_fields=["current_stage", "status"])
@@ -65,12 +67,13 @@ def update_stage(*, correspondence, new_stage, actor, note=""):
     CorrespondenceMovement.objects.create(
         correspondence=correspondence,
         action_type=CorrespondenceMovement.ActionType.STAGE_UPDATED,
+        previous_stage=previous_stage,
+        new_stage=new_stage,
         actor=actor,
         note=note,
     )
     correspondence_stage_updated.send(sender=Correspondence, correspondence=correspondence, actor=actor, note=note)
     return correspondence
-
 
 @transaction.atomic
 def complete_correspondence(*, correspondence, actor, note=""):

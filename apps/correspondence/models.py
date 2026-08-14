@@ -73,12 +73,16 @@ class CorrespondenceMovement(models.Model):
         FORWARDED = "Forwarded", "Forwarded"
         STAGE_UPDATED = "Stage Updated", "Stage Updated"
         COMPLETED = "Completed", "Completed"
+        NOTE_ADDED = "Note Added", "Note Added"
+        ATTACHMENT_UPLOADED = "Attachment Uploaded", "Attachment Uploaded"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     correspondence = models.ForeignKey(Correspondence, on_delete=models.CASCADE, related_name="movements")
-    action_type = models.CharField(max_length=20, choices=ActionType.choices)
+    action_type = models.CharField(max_length=25, choices=ActionType.choices)
     from_office = models.ForeignKey("accounts.Office", on_delete=models.SET_NULL, null=True, blank=True, related_name="movements_from")
     to_office = models.ForeignKey("accounts.Office", on_delete=models.SET_NULL, null=True, blank=True, related_name="movements_to")
+    previous_stage = models.CharField(max_length=100, blank=True, null=True)
+    new_stage = models.CharField(max_length=100, blank=True, null=True)
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     note = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)

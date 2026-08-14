@@ -26,12 +26,34 @@ class CorrespondenceListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # office-scoped: office users see only their office's records; admins see all
         user = self.request.user
         qs = Correspondence.objects.select_related("current_office", "assigned_to")
-        if user.role != user.Role.ADMIN:
-            qs = qs.filter(current_office=user.office)
-        return qs
+
+        if user.role == user.Role.ADMIN:
+            return qs
+
+        office = user.office
+        scope = self.request.query_params.get("scope", "current")
+
+        if scope == "current":
+            return qs.filter(current_office=office)
+        elif scope == "received":
+            office_ids = CorrespondenceMovement.objects.filter(
+                to_office=office, action_type=CorrespondenceMovement.ActionType.FORWARDED
+            ).values_list("correspondence_id", flat=True)
+            return qs.filter(id__in=office_ids)
+        elif scope == "forwarded":
+            office_ids = CorrespondenceMovement.objects.filter(
+                from_office=office, action_type=CorrespondenceMovement.ActionType.FORWARDED
+            ).values_list("correspondence_id", flat=True)
+            return qs.filter(id__in=office_ids)
+        elif scope == "handled":
+            handled_ids = CorrespondenceMovement.objects.filter(
+                Q(from_office=office) | Q(to_office=office)
+            ).values_list("correspondence_id", flat=True)
+            return qs.filter(Q(current_office=office) | Q(id__in=handled_ids))
+        else:
+            raise ValidationError({"scope": "Must be one of: current, received, forwarded, handled."})
 
     def get_serializer_class(self):
         return CorrespondenceCreateSerializer if self.request.method == "POST" else CorrespondenceListSerializer
@@ -40,15 +62,21 @@ class CorrespondenceListCreateView(generics.ListCreateAPIView):
         office = self.request.user.office
         if not office:
             raise ValidationError({
-            "detail": "You are not assigned to an office and cannot register correspondence. "
-                      "Contact an administrator to be assigned to an office first."
-        })
+                "detail": "You are not assigned to an office and cannot register correspondence. "
+                          "Contact an administrator to be assigned to an office first."
+            })
         correspondence = services.register_correspondence(
-            data=serializer.validated_data,
-            office=office,
-            actor=self.request.user,
+            data=serializer.validated_data, office=office, actor=self.request.user,
         )
         serializer.instance = correspondence
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        output_serializer = CorrespondenceDetailSerializer(serializer.instance)
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class CorrespondenceDetailView(generics.RetrieveAPIView):
@@ -184,6 +212,13 @@ class AttachmentListCreateView(generics.ListCreateAPIView):
             instance.delete()
             raise ValidationError({"file": e.messages})
 
+        CorrespondenceMovement.objects.create(
+            correspondence=correspondence,
+            action_type=CorrespondenceMovement.ActionType.ATTACHMENT_UPLOADED,
+            actor=self.request.user,
+            note=f"Uploaded: {instance.original_filename}",
+        )
+
 class NoteListCreateView(generics.ListCreateAPIView):
     serializer_class = NoteSerializer
     permission_classes = [IsAuthenticated]
@@ -196,7 +231,14 @@ class NoteListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
         enforce_office_access(self.request.user, correspondence)
-        serializer.save(correspondence=correspondence, author=self.request.user)
+        note = serializer.save(correspondence=correspondence, author=self.request.user)
+
+        CorrespondenceMovement.objects.create(
+            correspondence=correspondence,
+            action_type=CorrespondenceMovement.ActionType.NOTE_ADDED,
+            actor=self.request.user,
+            note=note.text[:200],
+    )
 
 
 @extend_schema(responses=OpenApiTypes.OBJECT)
