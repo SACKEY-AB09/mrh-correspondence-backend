@@ -25,6 +25,11 @@ class MeView(RetrieveUpdateAPIView):
 class CreateOfficeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        offices = Office.objects.filter(status=Office.Status.ACTIVE).order_by("name")
+        return Response(OfficeSerializer(offices, many=True).data)
+
+
     def post(self, request):
         if request.user.role != request.user.Role.ADMIN:
             raise PermissionDenied("Admin access required.")
@@ -36,6 +41,8 @@ class CreateOfficeView(APIView):
 
         office = Office.objects.create(name=name, code=code)
         return Response(OfficeSerializer(office).data, status=201)
+
+    
 
 class CreateUserView(APIView):
     permission_classes = [IsAuthenticated]
