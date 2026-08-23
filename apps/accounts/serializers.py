@@ -33,3 +33,13 @@ class OfficeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Office
         fields = ["id", "name", "code", "status"]
+
+class UserListSerializer(serializers.ModelSerializer):
+    office_name = serializers.CharField(source="office.name", read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "first_name", "last_name", "email",
+            "role", "office", "office_name", "is_active", "last_login",
+        ]

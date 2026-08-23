@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.utils import timezone
 from .models import Correspondence, CorrespondenceMovement
 from .signals import (
@@ -7,26 +7,48 @@ from .signals import (
 )
 
 def generate_reference_number(office):
-    """Format: OFFICECODE-YEAR-SEQUENCE, e.g. LEG-2026-0007"""
+    """Format: OFFICECODE-YEAR-SEQUENCE, e.g. LEG-2026-0007.
+    Looks at the highest sequence number actually in use for this office+year,
+    rather than counting rows — this is robust against any historical
+    inconsistency in the data (e.g. records created outside the normal flow)."""
     year = timezone.now().year
-    count_this_year = Correspondence.objects.filter(
-        current_office=office, received_at__year=year
-    ).count() + 1
-    return f"{office.code}-{year}-{count_this_year:04d}"
+    prefix = f"{office.code}-{year}-"
+
+    existing_numbers = Correspondence.objects.filter(
+        reference_number__startswith=prefix
+    ).values_list("reference_number", flat=True)
+
+    max_seq = 0
+    for ref in existing_numbers:
+        suffix = ref[len(prefix):]
+        if suffix.isdigit():
+            max_seq = max(max_seq, int(suffix))
+
+    return f"{prefix}{max_seq + 1:04d}"
 
 
 @transaction.atomic
 def register_correspondence(*, data, office, actor):
     data = dict(data)
-    data.pop ("current_office", None)
-    reference_number = generate_reference_number(office)
-    correspondence = Correspondence.objects.create(
-        reference_number=reference_number,
-        registered_by=actor,
-        current_office=office,
-        status=Correspondence.Status.REGISTERED,
-        **data,
-    )
+    data.pop("current_office", None)
+
+    for attempt in range(5):
+        reference_number = generate_reference_number(office)
+        try:
+            with transaction.atomic():
+                correspondence = Correspondence.objects.create(
+                    reference_number=reference_number,
+                    registered_by=actor,
+                    current_office=office,
+                    status=Correspondence.Status.REGISTERED,
+                    **data,
+                )
+            break
+        except IntegrityError:
+            if attempt == 4:
+                raise
+            continue
+
     CorrespondenceMovement.objects.create(
         correspondence=correspondence,
         action_type=CorrespondenceMovement.ActionType.REGISTERED,

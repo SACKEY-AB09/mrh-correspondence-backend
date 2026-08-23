@@ -7,8 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from .models import Office, User
-from .serializers import MyTokenObtainPairSerializer, UserSerializer, OfficeSerializer
+from .serializers import MyTokenObtainPairSerializer, UserSerializer, OfficeSerializer, UserListSerializer
 from . import services
+from django.db.models import Q
 
 
 class LoginView(TokenObtainPairView):
@@ -46,6 +47,30 @@ class CreateOfficeView(APIView):
 
 class CreateUserView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != request.user.Role.ADMIN:
+            raise PermissionDenied("Admin access required.")
+
+        qs = User.objects.select_related("office").all().order_by("email")
+
+        search = request.query_params.get("search")
+        role = request.query_params.get("role")
+        office = request.query_params.get("office")
+        status_param = request.query_params.get("status")
+
+        if search:
+            qs = qs.filter(Q(email__icontains=search) | Q(first_name__icontains=search) | Q(last_name__icontains=search))
+        if role:
+            qs = qs.filter(role=role)
+        if office:
+            qs = qs.filter(office_id=office)
+        if status_param:
+            qs = qs.filter(is_active=(status_param.lower() == "active"))
+
+        return Response(UserListSerializer(qs, many=True).data)
+
+
 
     def post(self, request):
         if request.user.role != request.user.Role.ADMIN:
