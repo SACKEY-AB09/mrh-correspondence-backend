@@ -10,7 +10,7 @@ class CorrespondenceListSerializer(serializers.ModelSerializer):
         model = Correspondence
         fields = [
             "id", "reference_number", "type", "subject", "sender", "priority",
-            "direction", "status", "current_office", "current_office_name",
+            "direction", "status","current_stage","current_office", "current_office_name",
             "assigned_to", "assigned_to_name", "deadline", "received_at",
         ]
 
