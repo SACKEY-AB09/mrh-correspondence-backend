@@ -97,7 +97,7 @@ def file_correspondence(*, correspondence, actor, note=""):
 
     CorrespondenceMovement.objects.create(
         correspondence=correspondence,
-        action_type=CorrespondenceMovement.ActionType.STAGE_UPDATED,  # reuse; "Filed" isn't a separate ActionType in your doc
+        action_type=CorrespondenceMovement.ActionType.FILED, 
         actor=actor,
         note=note or "Marked as filed",
     )

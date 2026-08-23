@@ -75,6 +75,7 @@ class CorrespondenceMovement(models.Model):
         COMPLETED = "Completed", "Completed"
         NOTE_ADDED = "Note Added", "Note Added"
         ATTACHMENT_UPLOADED = "Attachment Uploaded", "Attachment Uploaded"
+        FILED = "Filed", "Filed"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     correspondence = models.ForeignKey(Correspondence, on_delete=models.CASCADE, related_name="movements")
