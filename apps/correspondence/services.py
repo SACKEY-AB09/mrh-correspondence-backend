@@ -125,3 +125,53 @@ def file_correspondence(*, correspondence, actor, note=""):
     )
     correspondence_filed.send(sender=Correspondence, correspondence=correspondence, actor=actor, note=note)
     return correspondence
+
+
+def compute_average_office_duration_hours(queryset, office, only_resolved=False):
+    """Average hours a set of correspondence records have spent at `office`, sourced
+    entirely from movement history — never from received_at/resolved_at directly,
+    since those fields can be altered outside the normal workflow (e.g. a direct
+    admin edit), while movement timestamps are always server-generated and reliable.
+    """
+    durations = []
+    now = timezone.now()
+
+    for corr in queryset:
+        entered = (
+            CorrespondenceMovement.objects.filter(correspondence=corr, to_office=office)
+            .order_by("-timestamp")
+            .first()
+        )
+        entered_at = entered.timestamp if entered else None
+        if entered_at is None:
+            continue
+
+        closing_movement = (
+            CorrespondenceMovement.objects.filter(
+                correspondence=corr,
+                timestamp__gt=entered_at,
+                action_type__in=[
+                    CorrespondenceMovement.ActionType.FORWARDED,
+                    CorrespondenceMovement.ActionType.COMPLETED,
+                    CorrespondenceMovement.ActionType.FILED,
+                ],
+            )
+            .order_by("timestamp")
+            .first()
+        )
+
+        if closing_movement:
+            ended_at = closing_movement.timestamp
+        elif only_resolved:
+            continue
+        else:
+            ended_at = now
+
+        if ended_at < entered_at:
+            continue
+
+        durations.append((ended_at - entered_at).total_seconds() / 3600)
+
+    if not durations:
+        return None
+    return round(sum(durations) / len(durations), 2)

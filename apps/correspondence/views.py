@@ -260,9 +260,7 @@ class OfficeSummaryDashboardView(APIView):
             "by_status": list(qs.values("status").annotate(count=Count("id"))),
             "by_type": list(qs.values("type").annotate(count=Count("id"))),
             "recent": CorrespondenceListSerializer(qs.order_by("-received_at")[:5], many=True).data,
-            "avg_time_in_office_hours": qs.filter(resolved_at__isnull=False).aggregate(
-                avg=Avg(ExpressionWrapper(F("resolved_at") - F("received_at"), output_field=DurationField()))
-            )["avg"],
+            "avg_time_in_office_hours": services.compute_average_office_duration_hours(qs, office),
         }
         return Response(data)
 

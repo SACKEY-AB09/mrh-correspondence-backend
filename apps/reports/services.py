@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.db import transaction
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from apps.correspondence.models import Correspondence
+from apps.correspondence.services import compute_average_office_duration_hours
 
 
 def office_summary(office, start, end):
@@ -15,9 +16,7 @@ def office_summary(office, start, end):
         "total": qs.count(),
         "by_type": list(qs.values("type").annotate(count=Count("id"))),
         "by_status": list(qs.values("status").annotate(count=Count("id"))),
-        "avg_turnaround_hours": qs.filter(resolved_at__isnull=False).aggregate(
-            avg=Avg(ExpressionWrapper(F("resolved_at") - F("received_at"), output_field=DurationField()))
-        )["avg"],
+        "avg_turnaround_hours": compute_average_office_duration_hours(qs.filter(resolved_at__isnull=False), office, only_resolved=True),
     }
 
 
@@ -195,10 +194,9 @@ def formal_office_performance(office, start_date, end_date):
     completed = qs.filter(status=Correspondence.Status.COMPLETED).count()
     filed = qs.filter(status=Correspondence.Status.FILED).count()
     overdue = qs.filter(status=Correspondence.Status.OVERDUE).count()
+    avg_turnaround_hours = compute_average_office_duration_hours(qs.filter(resolved_at__isnull=False), office, only_resolved=True)
 
-    avg_turnaround = qs.filter(resolved_at__isnull=False).aggregate(
-        avg=Avg(ExpressionWrapper(F("resolved_at") - F("received_at"), output_field=DurationField()))
-    )["avg"]
+    
 
     status_breakdown = list(qs.values("status").annotate(count=Count("id")))
     type_breakdown = list(qs.values("type").annotate(count=Count("id")))
@@ -227,7 +225,7 @@ def formal_office_performance(office, start_date, end_date):
             "pending": total - completed - filed,
             "overdue": overdue,
             "completion_rate": round((completed / total) * 100, 1) if total else 0,
-            "avg_turnaround_days": round(avg_turnaround.total_seconds() / 86400, 1) if avg_turnaround else None,
+            "avg_turnaround_days": round(avg_turnaround_hours / 24, 1) if avg_turnaround_hours else None,
         },
         "status_breakdown": status_breakdown,
         "type_breakdown": type_breakdown,
