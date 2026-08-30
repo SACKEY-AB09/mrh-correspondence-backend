@@ -186,10 +186,10 @@ class AttachmentListCreateView(generics.ListCreateAPIView):
         correspondence = generics.get_object_or_404(Correspondence, pk=self.kwargs["pk"])
         enforce_office_access(self.request.user, correspondence)
 
-        if Attachment.objects.filter(correspondence=correspondence).exists():
-            raise ValidationError({
-                "detail": "This correspondence already has an attachment. Additional attachments are not permitted."
-            })
+        # if Attachment.objects.filter(correspondence=correspondence).exists():
+        #     raise ValidationError({
+        #         "detail": "This correspondence already has an attachment. Additional attachments are not permitted."
+        #     })
 
         uploaded_file = self.request.data.get("file")
         if not uploaded_file:
